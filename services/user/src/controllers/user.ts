@@ -1,3 +1,4 @@
+import { application } from "express";
 import { AuthenticatedRequest } from "../middleware/auth.js";
 import getBuffer from "../utils/buffer.js";
 import { sql } from "../utils/db.js";
@@ -166,61 +167,6 @@ export const updateResume = TryCatch(
 );
 
 
-
-
-// export const addSkillToUser = TryCatch(
-//   async (req: AuthenticatedRequest, res) => {
-//     const userId = req.user?.user_id;
-//     const { skillName } = req.body;
-//     console.log("Body:", req.body);
-
-//     if (!skillName || skillName.trim() === "") {
-//       throw new ErrorHandler(400, "Please provide a skill name");
-//     }
-
-//     let wasSkillAdded = false;
-
-//     try{
-//       await sql `BEGIN`;
-//       const users =
-//   await sql`SELECT user_id FROM users WHERE user_id = ${userId}`;
-
-// if (users.length === 0) {
-//   throw new ErrorHandler(404, "User not found.");
-// }
-// const [skill] =
-//   await sql`INSERT INTO skills (name) VALUES (${skillName.trim()}) ON
-// CONFLICT (name) DO UPDATE SET name = EXCLUDED.name RETURNING skill_id`;
-
-// const skillId = skill.skill_id;
-
-// const insertionResult =
-//   await sql`INSERT INTO user_skills (user_id, skill_id) VALUES (${userId}, $
-// {skillId}) ON CONFLICT (user_id, skill_id) DO NOTHING RETURNING user_id`;
-
-// if(insertionResult.length>0){
-//   wasSkillAdded=true;
-// }
-// await sql `COMMIT`;
-
-// } catch (error) {
-//   await sql`ROLLBACK`;
-//   throw error;
-// }
-
-// if(!wasSkillAdded){
-//   return res.status(200).json({
-//     message:`Skill ${skillName.trim()} is added succesfully`,
-//   })
-// }
-
-// res.json({
-//   message:`Skill ${skillName.trim()}is added successfully`,
-// })
-//     }
-// );
-
-
 export const addSkillToUser = TryCatch(
   async (req: AuthenticatedRequest, res) => {
     const userId = req.user?.user_id;
@@ -282,7 +228,7 @@ export const addSkillToUser = TryCatch(
       message: `Skill ${skillName.trim()} added successfully`,
     });
   }
-);
+)
 
 
 
@@ -312,3 +258,69 @@ res.json({
 
 })
 })
+
+
+export const applyForJob = TryCatch(async (req: AuthenticatedRequest, res) => {
+  const user = req.user;
+
+  if (!user) {
+    throw new ErrorHandler(401, "Authentication required");
+  }
+
+  if (user.role !== "jobseeker") {
+    throw new ErrorHandler(403, "Forbidden you are not allowed for this api");
+  }
+  const applicant_id=user.user_id;
+
+  const resume=user.resume;
+
+  if(!resume){
+    throw new ErrorHandler(400,"Please add resume to your profile");
+  }
+  
+  const {job_id}=req.body;
+
+  if(!job_id){
+    throw new ErrorHandler(400,"Job id is required");
+  }
+
+  const [job]=await sql `SELECT is_active FROM jobs WHERE job_id=${job_id}`;
+
+  if(!job){
+    throw new ErrorHandler(404,"No job with this id");
+  }
+  if(!job.is_active){
+    throw new ErrorHandler(400,"Job is not active");
+  }
+
+  
+  let newApplication;
+  try {
+  [newApplication] = await sql`INSERT INTO applications (job_id, applicant_id, applicant_email, resume, subscribed) VALUES (${job_id}, ${applicant_id}, ${user?.email}, ${resume}, false)`;
+} catch (error:any) {
+  if(error.code==="23505"){
+    throw new ErrorHandler(409,"you have already applied to this job");
+  }
+  throw error;
+
+}
+
+
+res.json({
+  message:"Applied for job successfully",
+  application:newApplication,
+})
+});
+
+export const getAllaplications = TryCatch(
+  async (req: AuthenticatedRequest, res) => {
+    const applications = await sql`
+      SELECT a.*, j.title AS job_title, j.salary AS job_salary, j.location AS
+      job_location FROM applications a JOIN jobs j ON a.job_id = j.job_id WHERE a.
+      applicant_id = ${req.user?.user_id}
+    `;
+
+    res.json(applications);
+  }
+);
+

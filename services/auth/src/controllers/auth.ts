@@ -103,15 +103,6 @@ const { email, password } = req.body;
    if(!email || !password){
     throw new ErrorHandler(400,"please fill all details");
    }
-
-// const user = await sql`
-//   SELECT u.user_id, u.name, u.email, u.password, u.phone_number, u.role, u.bio, u.resume, u.profile_pic, u.subscription, ARRAY_AGG(s.name) FILTER (WHERE s.name IS NOT NULL) as skills 
-//   FROM users u 
-//   LEFT JOIN user_skills us ON u.user_id = us.user_id
-//   LEFT JOIN skills s ON us.skill_id = s.skill_id
-//   WHERE u.email = ${email} 
-//   GROUP BY u.user_id;
-// `;
 const user = await sql`
   SELECT
     u.user_id,

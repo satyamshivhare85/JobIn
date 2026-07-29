@@ -15,6 +15,7 @@ startSendMailConsumer();
         api_secret: process.env.SECRETKEY // Click 'View API Keys' above to copy your API secret
     });
 const app=express();
+
 app.use(cors());
 
 app.use(express.json({limit:"50mb"}));
